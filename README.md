@@ -78,10 +78,10 @@ The tools currently manage these CLPE VMs:
 ## Branch Structure
 
 - **main**: Stable releases and documentation
-- **IntegrationTesting**: Active development and testing branch for CLPE environment ⭐ **CURRENT BRANCH**
+- **integrationtesting**: Active development and testing branch for CLPE environment ⭐ **CURRENT BRANCH**
 - **feature/***: Feature development branches
 
-## Development Notes (IntegrationTesting Branch)
+## Development Notes (integrationtesting Branch)
 
 This branch contains the latest development version with:
 - Enhanced NCRPES monitoring capabilities
@@ -99,10 +99,10 @@ This branch contains the latest development version with:
 
 ## Contributing
 
-1. Create a feature branch from `IntegrationTesting`
+1. Create a feature branch from `integrationtesting`
 2. Make your changes
 3. Test thoroughly in the Integration environment
-4. Submit a pull request to `IntegrationTesting`
+4. Submit a pull request to `integrationtesting`
 
 ## License
 
