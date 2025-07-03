@@ -78,8 +78,24 @@ The tools currently manage these CLPE VMs:
 ## Branch Structure
 
 - **main**: Stable releases and documentation
-- **IntegrationTesting**: Active development and testing branch for CLPE environment
+- **IntegrationTesting**: Active development and testing branch for CLPE environment ⭐ **CURRENT BRANCH**
 - **feature/***: Feature development branches
+
+## Development Notes (IntegrationTesting Branch)
+
+This branch contains the latest development version with:
+- Enhanced NCRPES monitoring capabilities
+- Real-time service health reporting
+- Multi-VM monitoring support
+- Improved error handling and logging
+
+### Testing Status:
+- ✅ CLPE VM Discovery
+- ✅ NCRPES Service Detection
+- ✅ Process Monitoring
+- ✅ System Performance Metrics
+- 🔄 Multi-VM Batch Monitoring (In Progress)
+- 🔄 Automated Health Alerts (Planned)
 
 ## Contributing
 
