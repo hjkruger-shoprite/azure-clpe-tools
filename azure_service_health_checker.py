@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """
-Azure Windows VM Service Health Checker
+Azure CLPE WEB VM Service Health Checker - Integration Testing
 
-A Python script to check the health of Windows services on Azure Virtual Machines
-using Azure Run Command API.
+A Python script to check the health of Windows services on CLPE WEB Virtual Machines
+in the Integration Testing subscription using Azure Run Command API.
+
+🔒 SECURITY RESTRICTED VERSION
+- Subscription: Integration Testing only (5b479b96-2b99-464d-a824-2761380620ea)
+- VM Filter: Only VMs tagged with System:CENTRAL_LOYALTY_PROMOTIONS_ENGINE, ARIS:CLPE, and Name containing 'WEB'
+- Service: Windows service health monitoring
 
 Features:
-- Discovers Azure Windows VMs
+- Discovers CLPE WEB Azure Windows VMs only
 - Interactive VM selection
 - Service status verification
 - Multiple service checks
@@ -29,25 +34,58 @@ except ImportError:
     sys.exit(1)
 
 
-class AzureServiceHealthChecker:
-    def __init__(self, subscription_id: str):
-        """Initialize the Azure Service Health Checker."""
-        self.subscription_id = subscription_id
+class AzureCLPEServiceHealthChecker:
+    def __init__(self):
+        """Initialize the Azure CLPE WEB Service Health Checker."""
+        # Integration Testing subscription ID - hardcoded for security
+        self.subscription_id = "5b479b96-2b99-464d-a824-2761380620ea"
         self.credential = DefaultAzureCredential()
-        self.compute_client = ComputeManagementClient(self.credential, subscription_id)
-        self.resource_client = ResourceManagementClient(self.credential, subscription_id)
+        self.compute_client = ComputeManagementClient(self.credential, self.subscription_id)
+        self.resource_client = ResourceManagementClient(self.credential, self.subscription_id)
 
-    def get_windows_vms(self, tag_filter: Optional[str] = None) -> List[Dict]:
-        """Get all Windows VMs in the subscription, optionally filtered by tag."""
-        print("🔍 Discovering Windows VMs...")
+    def get_clpe_web_vms(self) -> List[Dict]:
+        """Get CLPE WEB Windows VMs with specific tags in the integration subscription."""
+        print("🔍 Discovering CLPE WEB VMs...")
+        print("📋 Required criteria:")
+        print("   • Subscription: Integration Testing (5b479b96-2b99-464d-a824-2761380620ea)")
+        print("   • Tag System: CENTRAL_LOYALTY_PROMOTIONS_ENGINE")
+        print("   • Tag ARIS: CLPE")
+        print("   • Name tag contains: WEB")
+        print("   • OS Type: Windows")
+        print()
+        
         vms = []
+        total_vms = 0
+        filtered_vms = 0
         
         try:
             for vm in self.compute_client.virtual_machines.list_all():
+                total_vms += 1
+                
                 # Check if it's a Windows VM
-                if vm.storage_profile.os_disk.os_type.name.lower() == 'windows':
-                    # Apply tag filter if specified
-                    if tag_filter:
+                if not (vm.storage_profile and vm.storage_profile.os_disk and 
+                       vm.storage_profile.os_disk.os_type and
+                       vm.storage_profile.os_disk.os_type.name.lower() == 'windows'):
+                    continue
+                
+                # Check required tags
+                if not vm.tags:
+                    continue
+                
+                # Check System tag
+                if vm.tags.get('System') != 'CENTRAL_LOYALTY_PROMOTIONS_ENGINE':
+                    continue
+                
+                # Check ARIS tag
+                if vm.tags.get('ARIS') != 'CLPE':
+                    continue
+                
+                # Check Name tag contains 'WEB'
+                name_tag = vm.tags.get('Name', '')
+                if 'WEB' not in name_tag.upper():
+                    continue
+                
+                filtered_vms += 1
                         if not vm.tags or tag_filter not in vm.tags.values():
                             continue
                     
@@ -300,15 +338,79 @@ $results | ConvertTo-Json -Depth 3
 
 
 def main():
-    """Main function."""
-    print("🏥 Azure Windows VM Service Health Checker")
-    print("=" * 50)
+    """Main function for CLPE WEB VM Service Health Checker."""
+    print("🏥 Azure CLPE WEB VM Service Health Checker")
+    print("=" * 60)
+    print("🔒 RESTRICTED: Integration Testing - CLPE WEB VMs Only")
+    print("=" * 60)
     
-    # Get subscription ID
-    subscription_id = input("Enter Azure Subscription ID: ").strip()
-    if not subscription_id:
-        print("❌ Subscription ID is required!")
-        sys.exit(1)
+    # Auto-set Integration Testing subscription
+    integration_testing_subscription = "5b479b96-2b99-464d-a824-2761380620ea"
+    
+    print(f"📋 Configuration:")
+    print(f"   • Subscription: Integration Testing")
+    print(f"   • Subscription ID: {integration_testing_subscription}")
+    print(f"   • Target VMs: CLPE WEB servers only")
+    print(f"   • Required Tags: System=CENTRAL_LOYALTY_PROMOTIONS_ENGINE, ARIS=CLPE")
+    print(f"   • Name Filter: Name tag must contain 'WEB'")
+    print()
+    
+    # Confirmation prompt
+    confirm = input("🔐 This script will only work with CLPE WEB VMs in Integration Testing.\n"
+                   "   Do you want to continue? (y/N): ").strip().lower()
+    
+    if confirm != 'y':
+        print("❌ Operation cancelled.")
+        return
+    
+    try:
+        # Initialize checker with hardcoded subscription
+        checker = AzureCLPEServiceHealthChecker()
+        
+        # Get CLPE WEB VMs
+        vms = checker.get_clpe_web_vms()
+        
+        if not vms:
+            print("❌ No CLPE WEB VMs found matching the criteria.")
+            print("\n📋 Troubleshooting:")
+            print("   • Verify you're connected to Integration Testing subscription")
+            print("   • Check that VMs have the required tags:")
+            print("     - System: CENTRAL_LOYALTY_PROMOTIONS_ENGINE")
+            print("     - ARIS: CLPE")
+            print("     - Name: (must contain 'WEB')")
+            print("   • Ensure VMs are running and accessible")
+            return
+        
+        # Select VM
+        selected_vm = checker.select_clpe_web_vm(vms)
+        if not selected_vm:
+            print("❌ No CLPE WEB VM selected.")
+            return
+        
+        # Get services to check
+        services = checker.get_services_to_check()
+        if not services:
+            print("❌ No services specified for health check.")
+            return
+        
+        print(f"\n🔍 Performing service health check on CLPE WEB VM: {selected_vm['name']}")
+        print(f"📋 Services to check: {', '.join(services)}")
+        
+        # Perform health check
+        results = checker.check_service_health(selected_vm, services)
+        
+        # Display results
+        checker.display_service_results(results)
+        
+        print(f"\n✅ CLPE WEB VM service health check completed for {selected_vm['name']}!")
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        print("\n🔧 Troubleshooting:")
+        print("   • Verify Azure CLI authentication: az login")
+        print("   • Check subscription access: az account show")
+        print("   • Ensure VM Agent is installed and running")
+        print("   • Verify network connectivity to Azure")
     
     try:
         # Initialize checker

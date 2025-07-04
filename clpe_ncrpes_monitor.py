@@ -41,53 +41,131 @@ class CLPENCRPESMonitor:
         self.resource_client = ResourceManagementClient(self.credential, self.subscription_id)
 
     def get_clpe_vms(self) -> List[Dict]:
-        """Get all CLPE Windows VMs in the integration subscription."""
-        print("🔍 Discovering CLPE VMs...")
+        """Get CLPE WEB Windows VMs with specific tags in the integration subscription."""
+        print("🔍 Discovering CLPE WEB VMs...")
+        print("📋 Required criteria:")
+        print("   • Subscription: Integration Testing (5b479b96-2b99-464d-a824-2761380620ea)")
+        print("   • Tag System: CENTRAL_LOYALTY_PROMOTIONS_ENGINE")
+        print("   • Tag ARIS: CLPE")
+        print("   • Name tag contains: WEB")
+        print("   • OS Type: Windows")
+        print()
+        
         vms = []
+        total_vms = 0
+        filtered_vms = 0
         
         try:
             for vm in self.compute_client.virtual_machines.list_all():
-                # Check if it's a Windows VM with CLPE tag
-                if (vm.storage_profile.os_disk.os_type.name.lower() == 'windows' and
-                    vm.tags and self.clpe_tag in vm.tags.values()):
-                    
-                    vm_info = {
-                        'name': vm.name,
-                        'resource_group': vm.id.split('/')[4],
-                        'location': vm.location,
-                        'vm_size': vm.hardware_profile.vm_size,
-                        'power_state': 'unknown',
-                        'tags': vm.tags or {},
-                        'os_version': 'Windows Server 2016 Datacenter'  # Based on your README
-                    }
-                    
-                    # Get power state
-                    try:
-                        instance_view = self.compute_client.virtual_machines.instance_view(
-                            vm_info['resource_group'], vm.name
-                        )
-                        for status in instance_view.statuses:
-                            if status.code.startswith('PowerState/'):
-                                vm_info['power_state'] = status.code.split('/')[-1]
-                                break
-                    except Exception as e:
-                        print(f"⚠️  Could not get power state for {vm.name}: {e}")
-                    
-                    vms.append(vm_info)
+                total_vms += 1
+                
+                # Check if it's a Windows VM
+                if not (vm.storage_profile and vm.storage_profile.os_disk and 
+                       vm.storage_profile.os_disk.os_type and
+                       vm.storage_profile.os_disk.os_type.name.lower() == 'windows'):
+                    continue
+                
+                # Check required tags
+                if not vm.tags:
+                    continue
+                
+                # Check System tag
+                if vm.tags.get('System') != 'CENTRAL_LOYALTY_PROMOTIONS_ENGINE':
+                    continue
+                
+                # Check ARIS tag
+                if vm.tags.get('ARIS') != 'CLPE':
+                    continue
+                
+                # Check Name tag contains 'WEB'
+                name_tag = vm.tags.get('Name', '')
+                if 'WEB' not in name_tag.upper():
+                    continue
+                
+                filtered_vms += 1
+                
+                vm_info = {
+                    'name': vm.name,
+                    'resource_group': vm.id.split('/')[4],
+                    'location': vm.location,
+                    'vm_size': vm.hardware_profile.vm_size,
+                    'power_state': 'unknown',
+                    'tags': vm.tags or {},
+                    'os_version': 'Windows Server 2016 Datacenter'  # Based on your README
+                }
+                
+                # Get power state
+                try:
+                    instance_view = self.compute_client.virtual_machines.instance_view(
+                        vm_info['resource_group'], vm.name
+                    )
+                    for status in instance_view.statuses:
+                        if status.code.startswith('PowerState/'):
+                            vm_info['power_state'] = status.code.split('/')[-1]
+                            break
+                except Exception as e:
+                    print(f"⚠️  Could not get power state for {vm.name}: {e}")
+                
+                vms.append(vm_info)
+                print(f"✅ Found CLPE WEB VM: {vm.name} (Name: {name_tag}) - {vm_info['power_state']}")
+            
+            print(f"\n📊 VM Discovery Results:")
+            print(f"   • Total VMs in subscription: {total_vms}")
+            print(f"   • CLPE WEB VMs found: {filtered_vms}")
+            
+            if filtered_vms == 0:
+                print("\n⚠️  No CLPE WEB VMs found matching criteria.")
+                print("   Please verify:")
+                print("   • VMs have tag System=CENTRAL_LOYALTY_PROMOTIONS_ENGINE")
+                print("   • VMs have tag ARIS=CLPE")
+                print("   • VMs have Name tag containing 'WEB'")
+                print("   • VMs are Windows-based")
+                print("   • You're connected to Integration Testing subscription")
             
             return vms
         except AzureError as e:
-            print(f"❌ Error fetching CLPE VMs: {e}")
+            print(f"❌ Error fetching CLPE WEB VMs: {e}")
             return []
 
     def select_clpe_vm(self, vms: List[Dict]) -> Optional[Dict]:
-        """Interactive CLPE VM selection."""
+        """Interactive CLPE WEB VM selection."""
         if not vms:
-            print("❌ No CLPE VMs found!")
-            print("Make sure VMs are tagged with 'System:CENTRAL_LOYALTY_PROMOTIONS_ENGINE'")
+            print("❌ No CLPE WEB VMs found!")
+            print("Make sure VMs are tagged with:")
+            print("   • System: CENTRAL_LOYALTY_PROMOTIONS_ENGINE")
+            print("   • ARIS: CLPE")
+            print("   • Name: (containing 'WEB')")
             return None
         
-        print(f"\n✅ Found {len(vms)} CLPE VM(s):")
+        print(f"\n✅ Found {len(vms)} CLPE WEB VM(s):")
+        print("-" * 80)
+        
+        for i, vm in enumerate(vms, 1):
+            power_icon = "🟢" if vm['power_state'] == 'running' else "🔴" if vm['power_state'] == 'stopped' else "🟡"
+            name_tag = vm['tags'].get('Name', 'N/A')
+            
+            print(f"{i}. {vm['name']} (RG: {vm['resource_group']}) {power_icon} {vm['power_state']}")
+            print(f"   📋 Name Tag: {name_tag}")
+            print(f"   🏷️  System: {vm['tags'].get('System', 'N/A')}")
+            print(f"   🏷️  ARIS: {vm['tags'].get('ARIS', 'N/A')}")
+            print(f"   📍 Location: {vm['location']}")
+            print()
+        
+        while True:
+            try:
+                choice = input(f"Select CLPE WEB VM (1-{len(vms)}) or 'q' to quit: ").strip()
+                if choice.lower() == 'q':
+                    return None
+                
+                index = int(choice) - 1
+                if 0 <= index < len(vms):
+                    selected_vm = vms[index]
+                    print(f"🎯 Selected CLPE WEB VM: {selected_vm['name']}")
+                    return selected_vm
+                else:
+                    print(f"❌ Please enter a number between 1 and {len(vms)}")
+            except ValueError:
+                print("❌ Please enter a valid number or 'q' to quit")
         for i, vm in enumerate(vms, 1):
             status_emoji = "🟢" if vm['power_state'] == 'running' else "🔴"
             vm_type = "Database Server" if "DB" in vm['name'].upper() else "Web Server"
